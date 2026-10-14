@@ -1,0 +1,39 @@
+name: PR Risk Review
+
+# pull_request_target runs the workflow and script from the BASE branch, so a PR cannot
+# rewrite the reviewer that judges it. The PR head is never checked out or executed here;
+# the diff is read through the API and sent to the LLM as untrusted data.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-risk-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write        # squash merge + delete branch
+  pull-requests: write   # merge
+  issues: write          # comment + labels
+  checks: read           # wait for the CI check
+
+jobs:
+  risk-review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Score, comment, and merge if low risk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTO_MERGE_MAX: "30"   # score <= this: auto-merge (after CI)
+          BLOCK_MIN: "61"        # score >= this: fail the check
+          CI_CHECK_NAME: pytest  # job name in ci.yml
+        run: python3 .github/scripts/risk_review.py
