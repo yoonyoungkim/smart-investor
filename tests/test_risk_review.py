@@ -243,3 +243,75 @@ class TestMainFlow:
     def test_fork_pr_is_skipped(self, run_main):
         rc, log = run_main(SAFE, fork=True)
         assert rc == 0 and log["merged"] == [] and "Skipped" in log["comments"][0]
+
+
+GOOD = {"security": {"score": 4, "reasons": ["r"]}, "breaking": {"score": 2}, "blockers": [], "summary": "ok"}
+
+
+class _Proc:
+    def __init__(self, stdout="", returncode=0, stderr=""):
+        self.stdout, self.returncode, self.stderr = stdout, returncode, stderr
+
+
+class TestClaudeCli:
+    def _run(self, monkeypatch, proc):
+        seen = {}
+
+        def fake_run(cmd, **kw):
+            seen["cmd"], seen["kw"] = cmd, kw
+            return proc
+        monkeypatch.setattr(rr.subprocess, "run", fake_run)
+        monkeypatch.setenv("GITHUB_TOKEN", "ghs_secret")
+        out = rr.call_claude_cli("t", "b", "diff", "oauth-token", "claude-sonnet-5-5")
+        return out, seen
+
+    def test_parses_result_text(self, monkeypatch):
+        out, _ = self._run(monkeypatch, _Proc(json.dumps({"result": "```json\n" + json.dumps(GOOD) + "\n```", "is_error": False})))
+        assert out["security"][0] == 4 and out["breaking"][0] == 2
+
+    def test_parses_structured_output(self, monkeypatch):
+        out, _ = self._run(monkeypatch, _Proc(json.dumps({"structured_output": GOOD, "result": ""})))
+        assert out["security"][0] == 4
+
+    def test_tools_disabled_and_no_bare_and_github_token_not_forwarded(self, monkeypatch):
+        _, seen = self._run(monkeypatch, _Proc(json.dumps({"result": json.dumps(GOOD)})))
+        cmd = seen["cmd"]
+        assert cmd[cmd.index("--tools") + 1] == ""
+        assert "--bare" not in cmd and "--no-session-persistence" in cmd
+        assert seen["kw"]["env"]["CLAUDE_CODE_OAUTH_TOKEN"] == "oauth-token"
+        assert "GITHUB_TOKEN" not in seen["kw"]["env"] and "ANTHROPIC_API_KEY" not in seen["kw"]["env"]
+        assert seen["kw"]["input"].startswith("PR title: t")          # diff goes via stdin, not argv
+
+    def test_nonzero_exit_raises(self, monkeypatch):
+        with pytest.raises(RuntimeError):
+            self._run(monkeypatch, _Proc("", 1, "auth failed"))
+
+    def test_is_error_raises(self, monkeypatch):
+        with pytest.raises(RuntimeError):
+            self._run(monkeypatch, _Proc(json.dumps({"is_error": True, "result": "Login expired"})))
+
+
+class TestCredentialSelection:
+
+    def test_api_key_preferred_then_oauth_then_none(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(rr, "call_llm", lambda *a, **k: calls.append("api") or llm())
+        monkeypatch.setattr(rr, "call_claude_cli", lambda *a, **k: calls.append("cli") or llm())
+        monkeypatch.setattr(rr, "GH", FakeGH)
+        monkeypatch.setenv("REPO", "o/r"); monkeypatch.setenv("GITHUB_TOKEN", "t"); monkeypatch.setenv("PR_NUMBER", "7")
+        FakeGH.pr = {"title": "t", "body": "", "head": {"sha": "abc", "ref": "x", "repo": {"full_name": "o/r"}}}
+        FakeGH.files_, FakeGH.ci = SAFE, (True, "success")
+
+        def go(key, oauth):
+            for n, v in (("ANTHROPIC_API_KEY", key), ("CLAUDE_CODE_OAUTH_TOKEN", oauth)):
+                monkeypatch.delenv(n, raising=False)
+                if v:
+                    monkeypatch.setenv(n, v)
+            calls.clear()
+            rc = rr.main()
+            return list(calls), FakeGH.log
+
+        assert go("k", "o")[0] == ["api"]
+        assert go(None, "o")[0] == ["cli"]
+        c, log = go(None, None)                      # no credential: fail closed, no merge
+        assert c == [] and log["merged"] == []

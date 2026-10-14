@@ -31,12 +31,23 @@ PR이 열리거나 푸시되면 GitHub Actions(`.github/workflows/pr-risk-review
 
 ## 설정
 
-1. 저장소 Settings → Secrets and variables → Actions → `ANTHROPIC_API_KEY` 추가
-2. Settings → Actions → General → Workflow permissions: **Read and write**
-3. (권장) Settings → Branches에서 `main`에 `pytest`·`risk-review` 체크 필수 지정
-4. 임계값·모델은 워크플로의 `AUTO_MERGE_MAX`, `BLOCK_MIN`, `RISK_REVIEW_MODEL` 환경변수로 조정
+### 1. LLM 인증 (둘 중 하나)
 
-API 키가 없으면 LLM 축은 채점되지 않고 모든 PR이 사람 승인으로 넘어갑니다.
+| 방식 | Secret 이름 | 발급 | 과금 |
+|---|---|---|---|
+| A. API 키 | `ANTHROPIC_API_KEY` | [Claude Console](https://platform.claude.com)에서 API 키 생성 | API 토큰 사용량 |
+| B. 구독 로그인 | `CLAUDE_CODE_OAUTH_TOKEN` | 로컬 터미널에서 `claude setup-token` 실행 → 브라우저에서 승인 → 터미널에 출력된 토큰 복사 | Claude 구독(Pro/Max/Team/Enterprise) 사용량 |
+
+- 둘 다 있으면 API 키가 우선입니다. 둘 다 없으면 LLM 축은 채점되지 않고 모든 PR이 사람 승인으로 넘어갑니다.
+- B의 토큰은 1년짜리이며 `setup-token`은 저장하지 않고 출력만 합니다. 모델 요청만 가능합니다. 발급한 사람의 구독에 묶이고 구독 한도를 소모합니다.
+- B는 워크플로가 Claude Code CLI(`npm i -g @anthropic-ai/claude-code@2`)를 설치해 `claude -p`로 채점합니다. 도구를 모두 끄고(`--tools ""`) 빈 임시 폴더에서 실행하며, 환경에는 토큰만 전달합니다(`GITHUB_TOKEN` 미전달). 토큰을 채팅이나 코드에 붙여넣지 마세요.
+- Secret 등록: 저장소 Settings → Secrets and variables → Actions → New repository secret
+
+### 2. 나머지
+
+1. Settings → Actions → General → Workflow permissions: **Read and write**
+2. (권장) Settings → Branches에서 `main`에 `pytest`·`risk-review` 체크 필수 지정
+3. 임계값·모델은 워크플로의 `AUTO_MERGE_MAX`, `BLOCK_MIN`, `RISK_REVIEW_MODEL` 환경변수로 조정
 
 ## 로컬 테스트
 

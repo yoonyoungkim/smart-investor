@@ -4,6 +4,8 @@
 Hybrid scoring (higher = riskier):
   deterministic (computed from the file list) : scope 20, tests 15, migration 15
   LLM judgement (Claude, JSON)                : security 30, breaking 20
+                                              via ANTHROPIC_API_KEY (Messages API) or
+                                              CLAUDE_CODE_OAUTH_TOKEN (Claude Code CLI, subscription)
   deterministic floors/hard stops keep a manipulated LLM answer from lowering the risk.
 
 Decision: total <= AUTO_MAX -> auto-merge (squash) once CI is green and no hard stop applies;
@@ -15,7 +17,9 @@ import fnmatch
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -166,7 +170,7 @@ def parse_llm(text):
 
 def call_llm(title, body, diff, key, model):
     payload = {"model": model, "max_tokens": 2500, "system": SYSTEM, "messages": [{
-        "role": "user", "content": f"PR title: {title}\nPR description:\n{body or '(none)'}\n\n<diff>\n{diff}\n</diff>"}]}
+        "role": "user", "content": _user_prompt(title, body, diff)}]}
     req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=json.dumps(payload).encode(),
                                  headers={"x-api-key": key, "anthropic-version": "2023-06-01",
                                           "content-type": "application/json"})
@@ -180,6 +184,37 @@ def call_llm(title, body, diff, key, model):
                 continue
             raise
     raise RuntimeError("unreachable")
+
+
+def _user_prompt(title, body, diff):
+    return f"PR title: {title}\nPR description:\n{body or '(none)'}\n\n<diff>\n{diff}\n</diff>"
+
+
+def call_claude_cli(title, body, diff, token, model):
+    """Score via the Claude Code CLI using a subscription OAuth token (`claude setup-token`).
+
+    Runs in an empty temp dir with every tool disabled and only the token in the environment,
+    so a prompt-injected diff can neither read the repo nor reach GITHUB_TOKEN.
+    (--bare is not used: it ignores CLAUDE_CODE_OAUTH_TOKEN.)
+    """
+    workdir = tempfile.mkdtemp(prefix="risk-review-")
+    env = {"PATH": os.environ.get("PATH", ""), "HOME": workdir, "CLAUDE_CODE_OAUTH_TOKEN": token}
+    cmd = ["claude", "-p", "Follow the system prompt exactly and reply with the JSON object only.",
+           "--system-prompt", SYSTEM, "--tools", "", "--model", model,
+           "--output-format", "json", "--no-session-persistence"]
+    proc = subprocess.run(cmd, input=_user_prompt(title, body, diff), capture_output=True, text=True,
+                          timeout=300, cwd=workdir, env=env)
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude CLI exited {proc.returncode}: {proc.stderr[:300]!r}")
+    out = json.loads(proc.stdout)
+    if isinstance(out, dict):
+        if out.get("is_error"):
+            raise RuntimeError(f"claude CLI reported an error: {str(out.get('result'))[:300]!r}")
+        structured = out.get("structured_output")
+        text = json.dumps(structured) if isinstance(structured, dict) else str(out.get("result", ""))
+    else:
+        text = proc.stdout
+    return parse_llm(text)
 
 
 # ----------------------------------------------------------------- decision & rendering
@@ -305,12 +340,15 @@ def main():
     diff, cut = build_diff(files, env_int("MAX_DIFF_CHARS", 120000))
     truncated = truncated or cut
     llm = None
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if key:
-        try:
-            llm = call_llm(pr["title"], pr.get("body"), diff, key, os.environ.get("RISK_REVIEW_MODEL", "claude-sonnet-5-5"))
-        except Exception as e:          # fail closed: no auto-merge without an LLM verdict
-            print(f"LLM review failed: {e}", file=sys.stderr)
+    key, oauth = os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+    model = os.environ.get("RISK_REVIEW_MODEL", "claude-sonnet-5-5")
+    try:                                # API key wins when both are set; no credential -> llm stays None
+        if key:
+            llm = call_llm(pr["title"], pr.get("body"), diff, key, model)
+        elif oauth:
+            llm = call_claude_cli(pr["title"], pr.get("body"), diff, oauth, model)
+    except Exception as e:              # fail closed: no auto-merge without an LLM verdict
+        print(f"LLM review failed: {e}", file=sys.stderr)
     axes, total, stops = assess(files, truncated, llm)
     decision = decide(total, stops, llm["blockers"] if llm else [], auto_max, block_min)
     sha = pr["head"]["sha"]
