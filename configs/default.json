@@ -1,0 +1,19 @@
+{
+  "enabled": [
+    "dividend_yield",
+    "consecutive_dividends",
+    "dividend_growth",
+    "operating_income_growth",
+    "revenue_growth",
+    "debt_ratio",
+    "quick_ratio",
+    "interest_coverage"
+  ],
+  "params": {
+    "dividend_yield": {"min_dividend_yield": 4.0},
+    "consecutive_dividends": {"min_years": 5},
+    "debt_ratio": {"max_debt_ratio": 200.0},
+    "quick_ratio": {"min_quick_ratio": 100.0},
+    "interest_coverage": {"min_coverage_ratio": 100.0}
+  }
+}

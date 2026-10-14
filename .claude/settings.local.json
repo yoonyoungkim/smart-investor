@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(python3:*)",
+      "Bash(/Users/tiffany/workspace/smart-investor/venv/bin/pip install --upgrade pip)",
+      "Bash(/Users/tiffany/workspace/smart-investor/venv/bin/pip install -r requirements.txt)",
+      "Bash(/Users/tiffany/workspace/smart-investor/venv/bin/pip install:*)",
+      "Bash(mysql:*)",
+      "Bash(mariadb:*)",
+      "Bash(brew list:*)",
+      "Bash(docker --version:*)",
+      "Bash(docker info:*)",
+      "Bash(docker run:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker ps:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(python scripts/collect_us_etf.py:*)",
+      "Bash(python scripts/collect_kr_etf.py:*)",
+      "Bash(open -a Docker)",
+      "Bash(docker exec smart-investor-db *)"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "enabled": [
+    "per",
+    "pbr",
+    "graham_number",
+    "roe",
+    "operating_margin",
+    "debt_ratio",
+    "quick_ratio"
+  ],
+  "params": {
+    "per": {
+      "max_per": 15.0
+    },
+    "pbr": {
+      "max_pbr": 1.5
+    },
+    "graham_number": {
+      "max_product": 22.5
+    },
+    "roe": {
+      "min_roe": 10.0
+    },
+    "operating_margin": {
+      "min_operating_margin": 5.0
+    },
+    "debt_ratio": {
+      "max_debt_ratio": 200.0
+    },
+    "quick_ratio": {
+      "min_quick_ratio": 100.0
+    }
+  }
+}

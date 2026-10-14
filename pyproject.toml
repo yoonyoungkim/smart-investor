@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-investor"
+version = "0.2.0"
+description = "Stock recommendation system with US and Korean market support, based on fundamental analysis and dividend growth"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Smart Investor Team"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pymysql>=1.1.0",
+    "sqlalchemy>=2.0.30",
+    "cryptography>=41.0.0",
+    "lxml>=4.9.0",
+    "html5lib>=1.1",
+    "scipy>=1.11.0",
+    # Excel report generation
+    "openpyxl>=3.1.0",
+    "yfinance>=0.2.0",
+    # Korean stock support
+    "pykrx>=1.0.0",
+    "finance-datareader>=0.9.0",
+    # Scheduling
+    "apscheduler>=3.10.0",
+    # Notifications
+    "slack-sdk>=3.21.0",
+    # Required by slack_sdk.web.async_client
+    "aiohttp>=3.9.0",
+    "python-telegram-bot>=20.0",
+    "aiosmtplib>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312', 'py313']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "I", "N", "W", "B", "C4"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=src/smart_investor --cov-report=term-missing --cov-report=html"
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
