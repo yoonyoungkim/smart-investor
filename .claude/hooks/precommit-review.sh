@@ -85,8 +85,9 @@ if [ -f "$marker" ] && [ "$(cat "$marker")" = "$hash" ]; then exit 0; fi
 arg=""; [ "$mode" = "all" ] && arg=" all"
 cat >&2 <<MSG
 Commit blocked: these changes have not been code-reviewed yet.
-1. Run the code-review skill (superpowers:requesting-code-review) on the pending diff
+1. Run Claude Code's code-review skill (/code-review) on the pending changes
    ($( [ "$mode" = "all" ] && echo 'git diff HEAD' || echo 'git diff --cached' )) and fix every issue it reports.
+   (/code-review also covers uncommitted changes; use '/code-review low' for a quicker pass.)
 2. Once the review is clean, run: .claude/hooks/mark-reviewed.sh${arg}
 3. Retry the commit. (Editing the changes afterwards requires a new review.)
 MSG
