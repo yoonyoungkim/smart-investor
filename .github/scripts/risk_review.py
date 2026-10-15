@@ -29,9 +29,9 @@ MARK = "<!-- pr-risk-review -->"
 MAX = {"security": 30, "scope": 20, "breaking": 20, "tests": 15, "migration": 15}
 LABELS = {"auto_merge": "risk:low", "human": "risk:medium", "block": "risk:high"}
 
-SECURITY_FLOOR_PATHS = [".github/*", ".claude/*", ".env*", "*secret*", "*auth*", "*permission*",
+SECURITY_FLOOR_PATHS = [".github/*", ".claude/*", ".githooks/*", ".env*", "*secret*", "*auth*", "*permission*",
                         "*crypto*", "docker/*", "Dockerfile*", "*credential*"]
-HARD_STOP_PATHS = [".github/*", ".claude/*"]          # automation/config that executes code
+HARD_STOP_PATHS = [".github/*", ".claude/*", ".githooks/*"]   # automation/hooks that execute code
 MIGRATION_PATHS = ["scripts/migrate_*", "*/migrations/*", "migrations/*", "alembic/*"]
 SCHEMA_PATHS = ["*/db/models.py", "db/models.py"]
 ENV_PATHS = [".env.example", "docker/*", "Dockerfile*", "docker-compose*", "requirements*.txt",

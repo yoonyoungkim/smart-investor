@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Cross-model code review before every commit (see .githooks/cross_review.py, docs/cross-review.md).
+# Enable once per clone: scripts/install_hooks.sh
+command -v python3 >/dev/null 2>&1 || { echo "[cross-review] python3 not found: skipping review" >&2; exit 0; }
+exec python3 "$(dirname "$0")/cross_review.py"

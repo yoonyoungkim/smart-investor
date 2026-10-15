@@ -80,6 +80,10 @@ class TestHardStopsAndFloors:
     def test_claude_dir_is_hard_stop(self):
         assert rr.hard_stops([f(".claude/hooks/x.sh", 1)], False)
 
+    def test_githooks_is_hard_stop_and_security_floor(self):
+        assert rr.hard_stops([f(".githooks/pre-commit", 1)], False)
+        assert rr.security_floor([f(".githooks/cross_review.py", 1)])[0] == 10
+
     def test_truncated_is_hard_stop(self):
         assert rr.hard_stops([f("a.py", 1)], True)
 
