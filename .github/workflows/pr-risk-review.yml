@@ -13,8 +13,8 @@ concurrency:
 
 permissions:
   contents: write        # squash merge + delete branch
-  pull-requests: write   # merge
-  issues: write          # comment + labels
+  pull-requests: write   # approve review, inline comments, merge
+  issues: write          # comment + labels (risk:*, needs-dev-check)
   checks: read           # wait for the CI check
 
 jobs:
@@ -36,6 +36,7 @@ jobs:
       - name: Score, comment, and merge if low risk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BOT_PUSH_TOKEN: ${{ secrets.BOT_PUSH_TOKEN }}  # PAT (contents:write); optional. Without it minor fixes go to a developer
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           AUTO_MERGE_MAX: "30"   # score <= this: auto-merge (after CI)
